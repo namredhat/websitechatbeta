@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nhóm Chat</title>
+    <link rel="stylesheet" href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css">
+    <link rel="stylesheet" href="chat.css">
+</head>
+<body>
+    <!-- Thông báo đăng nhập -->
+<div id="loginAlert" class="alert">
+    Bạn phải đăng nhập để truy cập trang này.
+    <button id="closeAlert">Đóng</button>
+</div>
+
+    <div class="chat-container">
+        <div class="chat-header">
+            <h1>phòng chat TQN</h1>
+        </div>
+            <div id="userInfo">
+        <span id="userGreeting">Chào, <span id="username"></span></span>
+        <button id="logoutButton" class="logout-btn">Đăng xuất</button>
+    </div>
+        
+        <div class="chat-box" id="commentsList">
+            <!-- Các tin nhắn sẽ được hiển thị ở đây -->
+        </div>
+    </div>
+
+    <div class="chat-input">
+        <textarea id="commentInput" placeholder="Nhập tin nhắn..." onkeydown="checkEnter(event)"></textarea>
+        <div class="icon-container">
+            <i class="emoji" onclick="addEmoji('😊')">😊</i>
+            <i class="emoji" onclick="addEmoji('😎')">😎</i>
+            <i class="emoji" onclick="addEmoji('😂')">😂</i>
+            <i class="emoji" onclick="addEmoji('👍')">👍</i>
+        </div>
+        <button id="sendButton"><i class='bx bx-send'></i></button>
+    </div>
+
+    <script src="chatjava.js"></script>
+</body>
+</html>

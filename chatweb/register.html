@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đăng ký</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+    <style>
+
+    </style>
+</head>
+<body>
+    <div class="wrapper">
+        <form id="registerForm" action="#" method="POST">
+            <h1>Đăng ký</h1>
+            <div class="input-box">
+                <input type="text" id="registerUsername" placeholder="Tên đăng nhập" required>
+                <i class="bx bxs-user"></i>
+            </div>
+            <div class="input-box">
+                <input type="email" id="registerEmail" placeholder="Email" required>
+                <i class="bx bxs-envelope"></i>
+            </div>
+            <div class="input-box">
+                <input type="password" id="registerPassword" placeholder="Mật khẩu" required autocomplete="off">
+                <span class="toggle-password"><i class="bx bx-show"></i></span>
+            </div>       
+            <div class="input-box">
+                <input type="password" id="confirmPassword" placeholder="Xác nhận mật khẩu" required autocomplete="new-password">
+                <i class="bx bxs-lock"></i>
+            </div>
+            <button type="submit" class="btn">Đăng ký</button>
+            <div class="register-link">
+                <p>Đã có tài khoản? <a href="index.html">Đăng nhập</a></p>
+            </div>
+        </form>
+    </div>
+    <div id="alertBox" class="alert hidden"></div>
+
+    <script src="java.js"></script>
+</body>
+</html>

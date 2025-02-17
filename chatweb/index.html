@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đăng nhập</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+</head>
+<body>
+
+    <div class="wrapper">
+        <form id="loginForm" action="#" method="POST">
+            <h1>Đăng nhập</h1>
+
+            <div class="input-box">
+                <input type="text" id="usernameInput" placeholder="Tên đăng nhập hoặc Email" required>
+                <i class="bx bxs-user"></i>
+            </div>
+
+            <div class="input-box">
+                <input type="password" id="passwordInput" placeholder="Mật khẩu" required autocomplete="off">
+                <span class="toggle-password"><i class="bx bx-show"></i></span>
+            </div>
+
+            <div class="remember-forgot">
+                <label class="checkbox-container">
+                    <input type="checkbox" id="rememberMe">
+                    <span class="checkmark"></span>Ghi nhớ đăng nhập
+                </label>
+            </div>
+
+            <button type="submit" class="btn">Đăng nhập</button>
+
+            <div class="register-link">
+                <p>Bạn chưa có tài khoản? <a href="register.html">Đăng ký ngay</a></p>
+            </div>
+        </form>
+    </div>
+
+
+    <div id="alertBox" class="alert hidden"></div>
+
+    <script src="java.js"></script>
+</body>
+</html>
