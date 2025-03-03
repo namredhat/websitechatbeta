@@ -1,44 +1,33 @@
 document.addEventListener("DOMContentLoaded", function () {
-    const form = document.getElementById("form");
     const registerForm = document.getElementById("registerForm");
     const loginForm = document.getElementById("loginForm");
     const logoutBtn = document.getElementById("logoutBtn");
-    const togglePassword = document.querySelector(".toggle-password");
 
-    if (registerForm) {
-        setupRegistrationForm(registerForm);
-    }
+    if (registerForm) setupRegistrationForm(registerForm);
+    if (loginForm) setupLoginForm(loginForm);
+    if (logoutBtn) setupLogoutButton(logoutBtn);
+    if (window.location.pathname.endsWith("dashboard.html")) checkSession();
 
-    if (loginForm) {
-        setupLoginForm(loginForm);
-    }
-
-    if (logoutBtn) {
-        setupLogoutButton(logoutBtn);
-    }
-
-    if (togglePassword) {
-        setupPasswordToggle(togglePassword);
-    }
-
-    if (window.location.pathname.endsWith("dashboard.html")) {
-        checkSession();
-    }
-});
-
+    // Setup toggle password visibility
+    document.querySelectorAll(".toggle-password").forEach(button => {
+        button.addEventListener("click", function () {
+            const passwordInput = this.previousElementSibling; // Lấy input ngay trước nó
+            if (passwordInput && passwordInput.type === "password" || passwordInput.type === "text") {
+                passwordInput.type = passwordInput.type === "password" ? "text" : "password";
+                this.innerHTML = passwordInput.type === "password" ? '<i class="bx bx-show"></i>' : '<i class="bx bx-hide"></i>';
+            }
+        });
+    });
+});    
 function setupRegistrationForm(form) {
-    const usernameInput = document.getElementById("registerUsername");
-    const emailInput = document.getElementById("registerEmail");
-    const passwordInput = document.getElementById("registerPassword");
-    const confirmPasswordInput = document.getElementById("confirmPassword");
-
     form.addEventListener("submit", async function (event) {
         event.preventDefault();
 
-        const username = usernameInput.value.trim();
-        const email = emailInput.value.trim();
-        const password = passwordInput.value;
-        const confirmPassword = confirmPasswordInput.value;
+        const username = document.getElementById("registerUsername").value.trim();
+        const email = document.getElementById("registerEmail").value.trim();
+        const password = document.getElementById("registerPassword").value;
+        const confirmPassword = document.getElementById("confirmPassword").value;
+        const rememberMe = document.getElementById("rememberMe")?.checked || false;
 
         if (!validateInputs(username, email, password, confirmPassword)) return;
 
@@ -49,9 +38,28 @@ function setupRegistrationForm(form) {
             return;
         }
 
-        const hashedPassword = await hashPassword(password);
-        users.push({ username, email, password: hashedPassword });
+        const { hash, salt } = await generateSecureHash(password);
+        const newUser = { 
+            username, 
+            email, 
+            hash, 
+            salt,
+            createdAt: new Date().toISOString(),
+            lastLogin: null,
+            status: "active",
+            profilePic: null
+        };
+        users.push({ username, email, hash, salt });
         localStorage.setItem("users", JSON.stringify(users));
+        if (rememberMe) {
+            const expiresAt = new Date().getTime() + 7 * 24 * 60 * 60 * 1000; // 7 ngày
+            localStorage.setItem("loggedInUser", JSON.stringify({ 
+                username: newUser.username, 
+                email: newUser.email, 
+                expiresAt,
+                rememberMe: true
+            }));
+        }
 
         showAlert("Đăng ký thành công! Đang chuyển hướng...", "success");
         setTimeout(() => window.location.href = "index.html", 1500);
@@ -59,21 +67,21 @@ function setupRegistrationForm(form) {
 }
 
 function setupLoginForm(form) {
-    form.addEventListener("submit", async function (e) {
-        e.preventDefault();
+    form.addEventListener("submit", async function (event) {
+        event.preventDefault();
+
         const email = document.getElementById("usernameInput").value.trim();
         const password = document.getElementById("passwordInput").value.trim();
         let users = JSON.parse(localStorage.getItem("users")) || [];
-        const hashedPassword = await hashPassword(password);
-        const user = users.find(user => user.email === email && user.password === hashedPassword);
+        const user = users.find(user => user.email === email);
 
-        if (!user) {
+        if (!user || !(await verifyPassword(password, user.hash, user.salt))) {
             showAlert("Email hoặc mật khẩu không đúng!", "error");
             return;
         }
 
         const expiresAt = new Date().getTime() + 30 * 60 * 1000;
-        localStorage.setItem("loggedInUser", JSON.stringify({ ...user, expiresAt }));
+        localStorage.setItem("loggedInUser", JSON.stringify({ username: user.username, email: user.email, expiresAt }));
 
         showAlert("✅ Đăng nhập thành công!", "success");
         setTimeout(() => window.location.href = "dashboard.html", 1500);
@@ -101,60 +109,61 @@ function checkSession() {
     }
 }
 
-function setupPasswordToggle(button, passwordInputId) {
-    const passwordInput = document.getElementById(passwordInputId);
-    
-    if (passwordInput) {
-        button.addEventListener("click", function () {
-            if (passwordInput.type === "password") {
-                passwordInput.type = "text";
-                this.innerHTML = '<i class="bx bx-hide"></i>';
-            } else {
-                passwordInput.type = "password";
-                this.innerHTML = '<i class="bx bx-show"></i>';
-            }
-        });
-    } else {
-        console.error(`Không tìm thấy input với ID ${passwordInputId}`);
-    }
+async function generateSecureHash(password) {
+    const salt = crypto.getRandomValues(new Uint8Array(16));
+    const encoder = new TextEncoder();
+    const keyMaterial = await crypto.subtle.importKey("raw", encoder.encode(password), { name: "PBKDF2" }, false, ["deriveBits"]);
+    const derivedKey = await crypto.subtle.deriveBits({ name: "PBKDF2", salt, iterations: 100000, hash: "SHA-256" }, keyMaterial, 256);
+    return {
+        salt: Array.from(salt).map(b => b.toString(16).padStart(2, '0')).join(''),
+        hash: Array.from(new Uint8Array(derivedKey)).map(b => b.toString(16).padStart(2, '0')).join('')
+    };
 }
 
-// Thiết lập toggle cho các input mật khẩu
-document.addEventListener("DOMContentLoaded", function() {
-    const passwordToggles = document.querySelectorAll(".toggle-password");
+async function verifyPassword(password, storedHash, storedSalt) {
+    const saltBytes = new Uint8Array(storedSalt.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
+    const encoder = new TextEncoder();
+    const keyMaterial = await crypto.subtle.importKey("raw", encoder.encode(password), { name: "PBKDF2" }, false, ["deriveBits"]);
+    const derivedKey = await crypto.subtle.deriveBits({ name: "PBKDF2", salt: saltBytes, iterations: 100000, hash: "SHA-256" }, keyMaterial, 256);
+    const computedHash = Array.from(new Uint8Array(derivedKey)).map(b => b.toString(16).padStart(2, '0')).join('');
+    return computedHash === storedHash;
+}
 
-    if (passwordToggles.length > 0) {
-        // Cập nhật sự kiện toggle cho các input mật khẩu
-        setupPasswordToggle(passwordToggles[0], "registerPassword");
-        setupPasswordToggle(passwordToggles[1], "confirmPassword");
-    }
-});
+function showAlert(message, type) {
+    const alertBox = document.createElement("div");
+    alertBox.textContent = message;
+    alertBox.classList.add("alert", type);
 
+    const existingAlert = document.querySelector(".alert");
+    if (existingAlert) existingAlert.remove();
 
+    document.body.appendChild(alertBox);
+
+    setTimeout(() => {
+        alertBox.style.animation = "fadeOut 0.5s ease-in-out";
+        setTimeout(() => alertBox.remove(), 500);
+    }, 3000);
+}
 
 function validateInputs(username, email, password, confirmPassword) {
     const usernameRegex = /^[a-zA-Z0-9_]{4,16}$/;
     const emailRegex = /^[a-zA-Z]+[0-9]+@gmail\.com$/;
 
-    // Kiểm tra tên đăng nhập
     if (!usernameRegex.test(username)) {
         showAlert("Tên đăng nhập phải từ 4-16 ký tự, không chứa dấu cách và ký tự đặc biệt.", "error");
         return false;
     }
 
-    // Kiểm tra email
     if (!emailRegex.test(email)) {
         showAlert("Email không hợp lệ. Vui lòng kiểm tra lại.", "error");
         return false;
     }
 
-    // Kiểm tra mật khẩu
     if (password.length < 8) {
         showAlert("Mật khẩu phải có ít nhất 8 ký tự.", "error");
         return false;
     }
 
-    // Kiểm tra mật khẩu xác nhận
     if (password !== confirmPassword) {
         showAlert("Mật khẩu xác nhận không trùng khớp.", "error");
         return false;
@@ -162,6 +171,7 @@ function validateInputs(username, email, password, confirmPassword) {
 
     return true;
 }
+
 
 
 async function hashPassword(password) {
@@ -186,5 +196,3 @@ function showAlert(message, type) {
         setTimeout(() => alertBox.remove(), 500);
     }, 3000);
 }
-
-
