@@ -69,43 +69,70 @@ function setupRegistrationForm(form) {
 function setupLoginForm(form) {
     form.addEventListener("submit", async function (event) {
         event.preventDefault();
-
-        const email = document.getElementById("usernameInput").value.trim();
+        const identifier = document.getElementById("usernameInput").value.trim();
         const password = document.getElementById("passwordInput").value.trim();
-        let users = JSON.parse(localStorage.getItem("users")) || [];
-        const user = users.find(user => user.email === email);
-
-        if (!user || !(await verifyPassword(password, user.hash, user.salt))) {
-            showAlert("Email hoặc mật khẩu không đúng!", "error");
+        let users;
+        try {
+            users = JSON.parse(localStorage.getItem("users")) || [];
+        } catch (error) {
+            console.error("Lỗi khi đọc dữ liệu người dùng từ localStorage:", error);
+            showAlert("Lỗi hệ thống! Vui lòng thử lại sau.", "error");
             return;
         }
 
-        const expiresAt = new Date().getTime() + 30 * 60 * 1000;
-        localStorage.setItem("loggedInUser", JSON.stringify({ username: user.username, email: user.email, expiresAt }));
+        if (!users.length) {
+            showAlert("Không tìm thấy tài khoản nào! Vui lòng đăng ký trước.", "error");
+            return;
+        }
+        const user = users.find(user => user.email === identifier || user.username === identifier);
 
-        showAlert("✅ Đăng nhập thành công!", "success");
-        setTimeout(() => window.location.href = "dashboard.html", 1500);
+        if (!user || !(await verifyPassword(password, user.hash, user.salt))) {
+            showAlert("Tên đăng nhập hoặc mật khẩu không đúng!", "error");
+            return;
+        }
+        localStorage.setItem("loggedInUser", JSON.stringify({ 
+            username: user.username, 
+            email: user.email, 
+            expiresAt, 
+            rememberMe: document.getElementById("rememberMe").checked
+        }));
+
+        showAlert("✅ Đăng nhập thành công! Đang chuyển hướng...", "success");
+        setTimeout(() => window.location.href = "dashboard.html", 1000);
     });
 }
+
 
 function setupLogoutButton(button) {
     button.addEventListener("click", function () {
         if (confirm("Bạn có chắc chắn muốn đăng xuất?")) {
             localStorage.removeItem("loggedInUser");
+            sessionStorage.removeItem("loggedInUser");
+            if (localStorage.getItem("rememberMe")) {
+                localStorage.removeItem("rememberMe");
+            }
             showAlert("✅ Đăng xuất thành công!", "success");
-            setTimeout(() => window.location.href = "index.html", 1500);
+            setTimeout(() => window.location.href = "index.html", 1000); 
         }
     });
 }
 
 function checkSession() {
     const loggedInUser = JSON.parse(localStorage.getItem("loggedInUser"));
+
     if (!loggedInUser || new Date().getTime() > loggedInUser.expiresAt) {
-        showAlert("Phiên đăng nhập đã hết hạn!", "error");
+        showAlert("⚠ Phiên đăng nhập đã hết hạn! Vui lòng đăng nhập lại.", "error");
         localStorage.removeItem("loggedInUser");
-        setTimeout(() => window.location.href = "index.html", 1500);
-    } else {
-        document.getElementById("welcomeMessage").innerText = `Xin chào, ${loggedInUser.username}!`;
+        setTimeout(() => window.location.href = "index.html", 1000);
+        return;
+    }
+    if (loggedInUser.rememberMe) {
+        loggedInUser.expiresAt = new Date().getTime() + 7 * 24 * 60 * 60 * 1000; 
+        localStorage.setItem("loggedInUser", JSON.stringify(loggedInUser));
+    }
+    const welcomeMessage = document.getElementById("welcomeMessage");
+    if (welcomeMessage) {
+        welcomeMessage.innerText = `👋 Xin chào, ${loggedInUser.username || loggedInUser.email}!`;
     }
 }
 
