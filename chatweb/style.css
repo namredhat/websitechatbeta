@@ -380,3 +380,27 @@ body {
 .checkbox-container input:checked ~ .checkmark::after {
     opacity: 1;
 }
+
+@media (max-width: 480px) {
+    .wrapper {
+        padding: 15px;
+    }
+
+    h1 {
+        font-size: 20px;
+    }
+
+    .input-box input {
+        font-size: 14px;
+        padding: 10px 35px 10px 10px;
+    }
+
+    .btn {
+        font-size: 16px;
+        padding: 10px;
+    }
+
+    .register-link {
+        font-size: 13px;
+    }
+}
