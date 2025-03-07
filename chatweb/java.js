@@ -7,7 +7,19 @@ document.addEventListener("DOMContentLoaded", function () {
     if (loginForm) setupLoginForm(loginForm);
     if (logoutBtn) setupLogoutButton(logoutBtn);
     if (window.location.pathname.endsWith("dashboard.html")) checkSession();
-
+    document.addEventListener("DOMContentLoaded", function () {
+        const loggedInUser = JSON.parse(localStorage.getItem("loggedInUser"));
+    
+        if (loggedInUser) {
+            const now = Date.now();
+            if (now >= loggedInUser.expiresAt) {
+                localStorage.removeItem("loggedInUser");
+                showAlert("⏳ Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!", "error");
+                setTimeout(() => window.location.href = "login.html", 2000); 
+            }
+        }
+    });
+    
     // Setup toggle password visibility
     document.querySelectorAll(".toggle-password").forEach(button => {
         button.addEventListener("click", function () {
@@ -71,6 +83,8 @@ function setupLoginForm(form) {
         event.preventDefault();
         const identifier = document.getElementById("usernameInput").value.trim();
         const password = document.getElementById("passwordInput").value.trim();
+        const rememberMe = document.getElementById("rememberMe").checked;
+        
         let users;
         try {
             users = JSON.parse(localStorage.getItem("users")) || [];
@@ -84,23 +98,32 @@ function setupLoginForm(form) {
             showAlert("Không tìm thấy tài khoản nào! Vui lòng đăng ký trước.", "error");
             return;
         }
+
         const user = users.find(user => user.email === identifier || user.username === identifier);
 
         if (!user || !(await verifyPassword(password, user.hash, user.salt))) {
             showAlert("Tên đăng nhập hoặc mật khẩu không đúng!", "error");
             return;
         }
+
+
+        const expiresAt = rememberMe 
+            ? Date.now() + 7 * 24 * 60 * 60 * 1000  
+            : Date.now() + 2 * 60 * 60 * 1000;  
+
+        // Lưu thông tin đăng nhập vào localStorage
         localStorage.setItem("loggedInUser", JSON.stringify({ 
             username: user.username, 
             email: user.email, 
             expiresAt, 
-            rememberMe: document.getElementById("rememberMe").checked
+            rememberMe
         }));
 
         showAlert("✅ Đăng nhập thành công! Đang chuyển hướng...", "success");
         setTimeout(() => window.location.href = "dashboard.html", 1000);
     });
 }
+
 
 
 function setupLogoutButton(button) {
@@ -148,12 +171,44 @@ async function generateSecureHash(password) {
 }
 
 async function verifyPassword(password, storedHash, storedSalt) {
-    const saltBytes = new Uint8Array(storedSalt.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
-    const encoder = new TextEncoder();
-    const keyMaterial = await crypto.subtle.importKey("raw", encoder.encode(password), { name: "PBKDF2" }, false, ["deriveBits"]);
-    const derivedKey = await crypto.subtle.deriveBits({ name: "PBKDF2", salt: saltBytes, iterations: 100000, hash: "SHA-256" }, keyMaterial, 256);
-    const computedHash = Array.from(new Uint8Array(derivedKey)).map(b => b.toString(16).padStart(2, '0')).join('');
-    return computedHash === storedHash;
+    try {
+        if (!password || !storedHash || !storedSalt) {
+            console.error("Thiếu dữ liệu đầu vào để xác thực mật khẩu.");
+            return false;
+        }
+
+        const saltBytes = new Uint8Array(
+            storedSalt.match(/.{1,2}/g).map(byte => parseInt(byte, 16))
+        );
+        const encoder = new TextEncoder();
+        const keyMaterial = await crypto.subtle.importKey(
+            "raw",
+            encoder.encode(password),
+            { name: "PBKDF2" },
+            false,
+            ["deriveBits"]
+        );
+
+        const derivedKey = await crypto.subtle.deriveBits(
+            { 
+                name: "PBKDF2", 
+                salt: saltBytes, 
+                iterations: 100000, // Giữ nguyên số vòng lặp như bản gốc
+                hash: "SHA-256" 
+            }, 
+            keyMaterial, 
+            256
+        );
+
+        const computedHash = Array.from(new Uint8Array(derivedKey))
+            .map(b => b.toString(16).padStart(2, '0'))
+            .join('');
+
+        return computedHash === storedHash;
+    } catch (error) {
+        console.error("Lỗi khi xác thực mật khẩu:", error);
+        return false;
+    }
 }
 
 function showAlert(message, type) {
